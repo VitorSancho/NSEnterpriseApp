@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using NSE.Identidade.API.data;
 
 internal class Program
@@ -22,7 +23,24 @@ internal class Program
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
 
+        builder.Services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "NerdStore Enterprise Identity API",
+                Description = "Esta API faz parte do curso ASP.NET",
+                Contact = new OpenApiContact() { Name = "Vitor Sancho Cardoso", Email = "vitor.sancho07@gmail.com" }
+                //License = new OpenApiLicense() { Name = "MIT", Url = new Uri("...") }
+            });
+        });
+
         var app = builder.Build();
+
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json","v1");
+        });
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
