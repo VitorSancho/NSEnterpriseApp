@@ -1,7 +1,11 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NSE.Identidade.API.data;
+using NSE.Identidade.API.extensions;
+using System.Text;
 
 internal class Program
 {
@@ -23,6 +27,33 @@ internal class Program
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
 
+        ///Configuração do JWT
+        var appSettingsSection = builder.Configuration.GetSection("AppSettings");
+        builder.Services.Configure<AppSettings>(appSettingsSection);
+
+        var appSettings = appSettingsSection.Get<AppSettings>();
+        var key = Encoding.ASCII.GetBytes(appSettings.Secret);
+
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        }).AddJwtBearer(bearerOptions =>
+        {
+            bearerOptions.RequireHttpsMetadata= true;
+            bearerOptions.SaveToken = true;
+            bearerOptions.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("x")),
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidAudience = appSettings.ValidoEm,
+                ValidIssuer = appSettings.Emissor
+            };
+        });
+        ////////////////////////////////////////////////////////
+        
         builder.Services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo
