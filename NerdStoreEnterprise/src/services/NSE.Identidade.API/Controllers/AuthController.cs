@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using NSE.Identidade.API.extensions;
 using NSE.Identidade.API.models;
+using System.Security.Claims;
 using System.Text;
 
 namespace NSE.Identidade.API.Controllers
@@ -80,6 +81,14 @@ namespace NSE.Identidade.API.Controllers
         {
             var user = await _userManager.FindByEmailAsync(email);
             var claims = await _userManager.GetClaimsAsync(user);
+            var identityClaims = await ObterClaimsUsuario(claims, user);
+            var encodedToken = CodificarToken(identityClaims);
+
+            return ObterRespostaToken(encodedToken, user, claims);
+        }
+
+        private async Task<ClaimsIdentity> ObterClaimsUsuario(ICollection<Claim> claims, IdentityUser user)
+        {
             var userRoles = await _userManager.GetRolesAsync(user);
 
             claims.Add(new System.Security.Claims.Claim(JwtRegisteredClaimNames.Sub, user.Id));
@@ -88,7 +97,7 @@ namespace NSE.Identidade.API.Controllers
             claims.Add(new System.Security.Claims.Claim(JwtRegisteredClaimNames.Nbf, ToUnixEpochDate(DateTime.UtcNow).ToString()));
             claims.Add(new System.Security.Claims.Claim(JwtRegisteredClaimNames.Iat, ToUnixEpochDate(DateTime.UtcNow).ToString(), System.Security.Claims.ClaimValueTypes.Integer64));
 
-            foreach(var userRole in userRoles)
+            foreach (var userRole in userRoles)
             {
                 claims.Add(new System.Security.Claims.Claim("role", userRole));
             }
@@ -96,6 +105,11 @@ namespace NSE.Identidade.API.Controllers
             var identityClaims = new System.Security.Claims.ClaimsIdentity();
             identityClaims.AddClaims(claims);
 
+            return identityClaims;
+        }
+
+        private string CodificarToken(ClaimsIdentity identityClaims)
+        {
             var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
 
@@ -108,8 +122,11 @@ namespace NSE.Identidade.API.Controllers
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
             });
 
-            var encodedToken = tokenHandler.WriteToken(token);
+            return tokenHandler.WriteToken(token);
+        }
 
+        private UsuarioRespostaLogin ObterRespostaToken(string encodedToken, IdentityUser user, IEnumerable<Claim> claims)
+        {
             var response = new UsuarioRespostaLogin
             {
                 AccessToken = encodedToken,
